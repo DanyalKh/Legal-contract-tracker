@@ -1,0 +1,33 @@
+Legal teams need to track specific clauses across multiple contracts. Your task is to build a 
+small web application that helps users to track and maintain which contracts contain which 
+types of clauses. For simplicity, we assume a legal clause is always represented by a single 
+sentence. 
+Core Requirements 
+Build an application where users can: 
+1. Upload contracts - plain text or markdown files  
+2. View document and label clause types (e.g., "Limitation of Liability", "Termination for 
+Convenience", "Non-Compete") - user should be able to label single sentences with 
+clause type 
+3. View a dashboard with document list - with options for search, filter and grouping 
+Technical Requirements 
+● Backend: Python (Flask or FastAPI preferred) 
+● Frontend: Angular 
+● Database: SQLite 
+● Containerization: Provide a Dockerfile and docker-compose.yml so we can run it 
+with docker-compose up 
+What We're Looking For 
+● Clean, maintainable code structure 
+● A working API with reasonable endpoint design 
+● An intuitive UI which supports the user with labeling clause types 
+● Database schema that fits the domain 
+Bonus Points (optional) 
+● Tests for critical paths 
+● Brief notes on how you'd extend this (scaling, AI features, etc.) 
+Deliverables 
+● GitHub repository (public or invite us) 
+● README explaining setup and your design decisions 
+Time Expectation 
+3–4 hours maximum. We're looking for a UX which is intuitive, self-explaining and appealing. 
+We want to see how you think, structure code, and make decisions. The backend code should 
+be minimal.  
+We'll extend this together in a pair programming session (by adding an automatic labeling step)

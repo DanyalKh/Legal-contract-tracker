@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: clausetracker_app
+    environment:
+      # SQLite database (file-based, stored in container)
+      DATABASE_URL: sqlite:///./clausetracker.db
+      # Python environment
+      PYTHONUNBUFFERED: 1
+      # Optional: Set environment (dev/prod)
+      ENVIRONMENT: development
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount source code for hot-reload during development
+      - ./backend:/app
+      # Persist SQLite database file
+      - ./backend/clausetracker.db:/app/clausetracker.db
+      # Exclude Python cache from host
+      - /app/__pycache__
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - clausetracker_network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: clausetracker_frontend
+    ports:
+      - "4200:4200"
+    volumes:
+      # Mount source code for hot-reload during development
+      - ./frontend:/app
+      # Exclude node_modules from host
+      - /app/node_modules
+    command: ng serve --host 0.0.0.0 --port 4200
+    networks:
+      - clausetracker_network
+    depends_on:
+      - app  # Ensure backend starts before frontend
+    restart: unless-stopped
+
+networks:
+  clausetracker_network:
+    driver: bridge

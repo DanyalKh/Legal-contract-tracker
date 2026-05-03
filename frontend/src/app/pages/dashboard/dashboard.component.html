@@ -1,0 +1,306 @@
+<div class="dashboard">
+
+  <!-- HEADER -->
+  <div class="dashboard-header">
+    <div class="header-content">
+      <h1>Contract Analysis Dashboard</h1>
+      <p>Manage and analyze your legal contracts with AI-powered clause detection</p>
+    </div>
+    <div class="header-actions">
+      <button mat-stroked-button (click)="refreshData()">
+        <mat-icon>refresh</mat-icon>
+        Refresh
+      </button>
+      <button mat-raised-button color="primary" (click)="openUpload()">
+        <mat-icon>add</mat-icon>
+        Upload Contract
+      </button>
+    </div>
+  </div>
+
+  <!-- ENHANCED KPI ROW -->
+  <div class="kpis">
+
+    <mat-card class="kpi-card" [class.trending-up]="progressChange > 5">
+      <div class="kpi-header">
+        <mat-icon>description</mat-icon>
+        <span class="kpi-title">Contracts</span>
+      </div>
+      <div class="kpi-value">{{ contracts.length }}</div>
+      <div class="kpi-subtitle">Total uploaded</div>
+    </mat-card>
+
+    <mat-card class="kpi-card" [class.trending-up]="labelingTrend > 0">
+      <div class="kpi-header">
+        <mat-icon>analytics</mat-icon>
+        <span class="kpi-title">Total Sentences</span>
+      </div>
+      <div class="kpi-value">
+        {{ (contracts || []).reduce((a,b) => a + (b?.total_sentences || 0), 0) | number }}
+      </div>
+      <div class="kpi-subtitle">Across all contracts</div>
+    </mat-card>
+
+    <mat-card class="kpi-card" [class.trending-up]="getRecentActivity() > 0">
+      <div class="kpi-header">
+        <mat-icon>label</mat-icon>
+        <span class="kpi-title">Labeled</span>
+      </div>
+      <div class="kpi-value">
+        {{ (contracts || []).reduce((a,b) => a + (b?.labeled_count || 0), 0) | number }}
+      </div>
+      <div class="kpi-trend" *ngIf="labelingTrend !== 0">
+        <mat-icon [class.positive]="labelingTrend > 0">{{ getTrendIcon(labelingTrend) }}</mat-icon>
+        {{ labelingTrend | number }} today
+      </div>
+    </mat-card>
+
+    <mat-card class="kpi-card">
+      <div class="kpi-header">
+        <mat-icon>timeline</mat-icon>
+        <span class="kpi-title">Avg. Progress</span>
+      </div>
+      <div class="kpi-value">{{ getAverageProgress() | number:'1.0-0' }}%</div>
+      <div class="kpi-subtitle">Completion rate</div>
+    </mat-card>
+
+  </div>
+
+  <!-- CONTROLS BAR -->
+  <div class="controls-bar">
+
+    <!-- LEFT SIDE -->
+    <div class="left-controls">
+
+      <mat-form-field appearance="outline" class="search">
+        <mat-label>Search contracts</mat-label>
+        <input matInput
+               [ngModel]="search"
+               (ngModelChange)="onSearchChange($event)"
+               placeholder="Type contract name..." />
+        <mat-icon matSuffix>search</mat-icon>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="filter">
+        <mat-label>Filter by clause type</mat-label>
+        <mat-select
+          [(ngModel)]="selectedClauseTypeId"
+          (ngModelChange)="onClauseTypeChange($event)">
+          <mat-option [value]="null">
+            <mat-icon>filter_list_off</mat-icon>
+            All clause types
+          </mat-option>
+          <mat-option *ngFor="let type of clauseTypes; trackBy: trackByTypeId" [value]="type.id">
+            <span class="option-dot" [style.background]="type?.color"></span>
+            {{ type?.name }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="sort" *ngIf="!groupByClause">
+        <mat-label>Sort by</mat-label>
+        <mat-select [(ngModel)]="sortBy" (ngModelChange)="onSortChange($event)">
+          <mat-option value="uploaded_desc">Newest first</mat-option>
+          <mat-option value="uploaded_asc">Oldest first</mat-option>
+          <mat-option value="filename">Name A-Z</mat-option>
+          <mat-option value="progress_desc">Most complete</mat-option>
+          <mat-option value="progress_asc">Least complete</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+    </div>
+
+    <!-- RIGHT SIDE (ACTIONS) -->
+    <div class="right-controls">
+      <button
+        mat-stroked-button
+        *ngIf="search || selectedClauseTypeId || sortBy !== 'uploaded_desc'"
+        (click)="clearFilters()">
+        <mat-icon>clear_all</mat-icon>
+        Clear Filters
+      </button>
+
+      <mat-slide-toggle [(ngModel)]="groupByClause" (change)="toggleGroupView()">
+        Group by Clause Type
+      </mat-slide-toggle>
+    </div>
+
+  </div>
+
+  <!-- CONTRACTS GRID -->
+  <div class="contracts-section" *ngIf="!groupByClause">
+    <div class="section-header">
+      <h2>Your Contracts ({{ filteredContracts.length }})</h2>
+      <div class="view-toggles">
+        <button mat-icon-button [class.active]="viewMode === 'grid'" (click)="setViewMode('grid')">
+          <mat-icon>grid_view</mat-icon>
+        </button>
+        <button mat-icon-button [class.active]="viewMode === 'list'" (click)="setViewMode('list')">
+          <mat-icon>list</mat-icon>
+        </button>
+      </div>
+    </div>
+
+    <!-- GRID VIEW -->
+    <div class="grid" *ngIf="viewMode === 'grid'">
+
+      <mat-card class="contract-card"
+                *ngFor="let c of filteredContracts; trackBy: trackByContractId"
+                [routerLink]="['/contracts', c.id]">
+
+        <div class="card-header">
+          <div class="contract-info">
+            <h3 [matTooltip]="c.filename">{{ c.filename | slice:0:30 }}{{ c.filename.length > 30 ? '...' : '' }}</h3>
+            <span class="upload-date">{{ c.uploaded_at | date:'short' }}</span>
+          </div>
+          <mat-chip [color]="getStatusColor(c)" selected>
+            {{ getStatusText(c) }}
+          </mat-chip>
+        </div>
+
+        <div class="progress-section">
+          <div class="progress-info">
+            <span class="progress-text">{{ c.labeled_count }}/{{ c.total_sentences }} labeled</span>
+            <span class="progress-percent">{{ getProgress(c) | number:'1.0-0' }}%</span>
+          </div>
+          <mat-progress-bar
+            mode="determinate"
+            [value]="getProgress(c)"
+            [class.complete]="getProgress(c) === 100">
+          </mat-progress-bar>
+        </div>
+
+        <div class="quick-stats">
+          <span class="stat">{{ getUnlabeledCount(c) }} remaining</span>
+          <span class="stat" *ngIf="c.last_activity">{{ c.last_activity | date:'short' }}</span>
+        </div>
+
+        <div class="card-actions">
+          <!-- <button mat-icon-button (click)="previewContract(c); $event.stopPropagation()">
+            <mat-icon>visibility</mat-icon>
+          </button> -->
+          <button mat-icon-button (click)="downloadContract(c); $event.stopPropagation()">
+            <mat-icon>download</mat-icon>
+          </button>
+          <button mat-icon-button color="warn" (click)="deleteContract(c); $event.stopPropagation()">
+            <mat-icon>delete</mat-icon>
+          </button>
+        </div>
+
+      </mat-card>
+
+    </div>
+
+    <!-- LIST VIEW -->
+    <div class="list" *ngIf="viewMode === 'list'">
+      <mat-card class="list-item" *ngFor="let c of filteredContracts; trackBy: trackByContractId"
+                [routerLink]="['/contracts', c.id]">
+
+        <div class="list-content">
+          <div class="list-main">
+            <h3>{{ c.filename }}</h3>
+            <div class="list-meta">
+              <span>{{ c.uploaded_at | date:'short' }}</span>
+              <span>{{ c.total_sentences }} sentences</span>
+              <span>{{ c.labeled_count }} labeled</span>
+            </div>
+          </div>
+
+          <div class="list-progress">
+            <mat-progress-bar mode="determinate" [value]="getProgress(c)"></mat-progress-bar>
+            <span class="progress-text">{{ getProgress(c) | number:'1.0-0' }}%</span>
+          </div>
+
+          <div class="list-status">
+            <mat-chip [color]="getStatusColor(c)" selected>
+              {{ getStatusText(c) }}
+            </mat-chip>
+          </div>
+        </div>
+
+      </mat-card>
+    </div>
+
+  </div>
+
+  <!-- GROUPED VIEW -->
+  <div class="contracts-section" *ngIf="groupByClause">
+    <div class="section-header">
+      <h2>Contracts Grouped by Clause Type</h2>
+      <p class="section-subtitle">Only contracts with labeled clauses appear in groups</p>
+    </div>
+
+    <div class="grouped-view">
+      <mat-card class="group-card" *ngFor="let group of contracts; trackBy: trackByTypeId">
+        <div class="group-header">
+          <div class="clause-type-badge">
+            <span class="clause-dot" [style.background]="group.clause_type?.color"></span>
+            <div class="clause-info">
+              <h3>{{ group.clause_type?.name }}</h3>
+              <span class="contract-count">{{ group.contracts?.length || 0 }} contract{{ (group.contracts?.length || 0) !== 1 ? 's' : '' }}</span>
+            </div>
+          </div>
+          <div class="group-stats">
+            <div class="stat-item">
+              <span class="stat-label">Total Sentences</span>
+              <span class="stat-value">{{ getGroupTotalSentences(group) }}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Labeled</span>
+              <span class="stat-value">{{ getGroupTotalLabeled(group) }}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Avg Progress</span>
+              <span class="stat-value">{{ getGroupAverageProgress(group) | number:'1.0-0' }}%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="group-contracts">
+          <div class="mini-contract" *ngFor="let contract of group.contracts || []; trackBy: trackByContractId" [routerLink]="['/contracts', contract.id]">
+            <div class="mini-header">
+              <span class="filename" [matTooltip]="contract.filename">{{ contract.filename | slice:0:30 }}{{ contract.filename?.length > 30 ? '...' : '' }}</span>
+              <mat-chip [color]="getStatusColor(contract)" size="small" selected>
+                {{ getStatusText(contract) }}
+              </mat-chip>
+            </div>
+            <div class="mini-progress">
+              <div class="progress-info">
+                <span class="progress-text">{{ contract.labeled_count || 0 }}/{{ contract.total_sentences || 0 }} labeled</span>
+                <span class="progress-percent">{{ getProgress(contract) | number:'1.0-0' }}%</span>
+              </div>
+              <mat-progress-bar mode="determinate" [value]="getProgress(contract)"></mat-progress-bar>
+            </div>
+          </div>
+        </div>
+      </mat-card>
+    </div>
+  </div>
+
+  <!-- EMPTY STATE -->
+  <div class="empty" *ngIf="(!groupByClause && filteredContracts.length === 0 && contracts.length === 0) || (groupByClause && contracts.length === 0)">
+    <div class="empty-content">
+      <mat-icon class="empty-icon">description</mat-icon>
+      <h2>No contracts yet</h2>
+      <p>Upload your first contract to start analyzing clauses with AI-powered assistance</p>
+      <button mat-raised-button color="primary" (click)="openUpload()">
+        <mat-icon>add</mat-icon>
+        Upload Contract
+      </button>
+    </div>
+  </div>
+
+  <!-- NO RESULTS STATE -->
+  <div class="empty" *ngIf="!groupByClause && filteredContracts.length === 0 && contracts.length > 0">
+    <div class="empty-content">
+      <mat-icon class="empty-icon">search_off</mat-icon>
+      <h2>No contracts match your filters</h2>
+      <p>Try adjusting your search terms or clearing the filters</p>
+      <button mat-stroked-button (click)="clearFilters()">
+        <mat-icon>clear_all</mat-icon>
+        Clear Filters
+      </button>
+    </div>
+  </div>
+
+</div>

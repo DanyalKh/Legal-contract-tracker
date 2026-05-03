@@ -1,0 +1,31 @@
+.dialog {
+  width: 400px;
+  padding: 20px;
+}
+
+/* DROPZONE */
+.dropzone {
+  border: 2px dashed #6b7280;
+  border-radius: 8px;
+  padding: 24px;
+  text-align: center;
+  margin: 16px 0;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.dropzone:hover {
+  border-color: #6366f1;
+  background: rgba(99, 102, 241, 0.05);
+}
+
+.file-name {
+  font-weight: 600;
+}
+
+/* ACTIONS */
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

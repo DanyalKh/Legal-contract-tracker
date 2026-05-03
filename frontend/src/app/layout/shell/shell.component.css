@@ -1,0 +1,29 @@
+/* HEADER */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+
+  color: #1f2937;
+}
+
+/* LOGO */
+.logo {
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: #1f2937;
+}
+
+/* SPACER */
+.spacer {
+  flex: 1;
+}
+
+/* PAGE CONTAINER */
+.page {
+  min-height: calc(100vh - 64px);
+}

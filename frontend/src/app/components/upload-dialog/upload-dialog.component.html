@@ -1,0 +1,47 @@
+<div class="dialog">
+
+  <h2>Upload Contract</h2>
+
+  <!-- DROP ZONE -->
+  <div
+    class="dropzone"
+    (drop)="onDrop($event)"
+    (dragover)="allowDrop($event)">
+
+    <p *ngIf="!file">Drop file here or click to browse</p>
+
+    <p *ngIf="file" class="file-name">
+      {{ file.name }}
+    </p>
+
+    <input
+      type="file"
+      (change)="onFileSelected($event)"
+      accept=".txt,.md"
+      hidden
+      #fileInput />
+
+    <button mat-button (click)="fileInput.click()">
+      Browse
+    </button>
+
+  </div>
+
+  <!-- ACTIONS -->
+  <div class="actions">
+
+    <button mat-button (click)="close()">
+      Cancel
+    </button>
+
+    <button
+      mat-raised-button
+      color="primary"
+      [disabled]="!file"
+      (click)="submit()">
+      Upload
+    </button>
+
+  </div>
+
+</div>

@@ -1,0 +1,191 @@
+<div class="layout">
+
+  <!-- HEADER -->
+  <div class="header">
+    <button mat-icon-button (click)="goBack()" matTooltip="Back to Dashboard">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <div class="contract-info">
+      <p>{{ contract?.filename }}</p>
+      <div class="contract-meta">
+        <span class="meta-item">{{ sentences.length }} sentences</span>
+        <span class="meta-item">{{ getLabeledCount() }} labeled</span>
+        <span class="meta-item">{{ getProgress() | number:'1.0-0' }}% complete</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button mat-stroked-button (click)="toggleBulkMode()">
+        <mat-icon>{{ bulkMode ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+        Bulk Mode
+      </button>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="main-content">
+
+    <!-- LEFT: DOCUMENT -->
+    <div class="document">
+
+      <!-- BULK ACTIONS BAR -->
+      <div class="bulk-actions" *ngIf="bulkMode && selectedSentences.length > 0">
+        <span>{{ selectedSentences.length }} sentences selected</span>
+        <mat-form-field appearance="outline" class="bulk-label-select">
+          <mat-label>Apply label to selected</mat-label>
+          <mat-select [(ngModel)]="bulkLabelType">
+            <mat-option *ngFor="let type of clauseTypes" [value]="type">
+              <span class="option-dot" [style.background]="type.color"></span>
+              {{ type.name }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+        <button mat-raised-button color="primary" (click)="applyBulkLabel()">
+          Apply Label
+        </button>
+        <button mat-button (click)="clearSelection()">Clear</button>
+      </div>
+
+      <!-- SENTENCES -->
+      <div
+        class="sentence"
+        *ngFor="let s of sentences; trackBy: trackBySentenceId"
+        [class.selected]="isSelected(s.id)"
+        [class.hovered]="hoveredSentenceId === s.id"
+        [class.labeled]="s.label"
+        [class.bulk-selected]="bulkMode && isSelected(s.id)"
+        (mouseenter)="hover(s.id)"
+        (mouseleave)="hover(null)"
+        (click)="onSentenceClick(s)">
+
+        <!-- INLINE CLAUSE TYPE LABEL -->
+        <div class="clause-type-label" *ngIf="s.label" [style.background]="s.label.color">
+          <mat-icon class="clause-type-icon">{{ getIconForClauseType(s.label.name) }}</mat-icon>
+          <span class="clause-type-name">{{ s.label.name }}</span>
+        </div>
+
+        <!-- SENTENCE CONTENT ROW -->
+        <div class="sentence-content">
+          <!-- BULK CHECKBOX -->
+          <mat-checkbox
+            *ngIf="bulkMode"
+            [checked]="isSelected(s.id)"
+            (click)="$event.stopPropagation()"
+            (change)="toggleSentenceSelection(s)">
+          </mat-checkbox>
+
+          <!-- SENTENCE TEXT -->
+          <span class="text" [innerHTML]="highlightKeywords(s.text)"></span>
+
+          <!-- QUICK ACTIONS (when selected) -->
+          <div class="quick-actions" *ngIf="!bulkMode && selectedSentenceId === s.id">
+            <button
+              mat-mini-fab
+              *ngFor="let type of suggestedLabels.slice(0, 3)"
+              [style.background]="type.color"
+              [matTooltip]="type.name + ' (Click to apply)'"
+              (click)="applyLabelToSentence(s, type); $event.stopPropagation()">
+              <mat-icon>{{ getIconForClauseType(type.name) }}</mat-icon>
+            </button>
+            <button
+              mat-mini-fab
+              color="accent"
+              matTooltip="More options"
+              [matMenuTriggerFor]="menu"
+              (click)="openMenu(s); $event.stopPropagation()">
+              <mat-icon>more_vert</mat-icon>
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- RIGHT: ENHANCED SIDEBAR -->
+    <div class="sidebar">
+
+      <!-- LABELING ASSISTANT -->
+      <div class="assistant-panel">
+        <h3>
+          <mat-icon>smart_toy</mat-icon>
+          Labeling Assistant
+        </h3>
+
+        <div class="assistant-content" *ngIf="selectedSentence">
+          <div class="current-sentence">
+            <strong>Selected:</strong>
+            <p>{{ selectedSentence.text | slice:0:100 }}...</p>
+          </div>
+
+          <div class="suggestions" *ngIf="suggestedLabels.length > 0">
+            <h4>Suggested Labels ({{ suggestedLabels.length }})</h4>
+            <div class="suggestion-item"
+                 *ngFor="let suggestion of suggestedLabels; let i = index"
+                 [class.high-confidence]="suggestion.confidence > 0.8"
+                 [class.selected]="selectedSuggestionIndex === i"
+                 (click)="applyLabelToSentence(selectedSentence, suggestion)"
+                 (mouseenter)="selectedSuggestionIndex = i"
+                 tabindex="0"
+                 (keydown)="onSuggestionKeyDown($event, suggestion)">
+              <span class="suggestion-dot" [style.background]="suggestion.color"></span>
+              <span class="suggestion-name">{{ suggestion.name }}</span>
+              <span class="suggestion-shortcut" *ngIf="suggestion.shortcut">({{ suggestion.shortcut }})</span>
+              <span class="suggestion-confidence">{{ suggestion.confidence | percent:'1.0-0' }}</span>
+            </div>
+          </div>
+
+          <div class="keyboard-shortcuts">
+            <h4>All Keyboard Shortcuts:</h4>
+            <div class="shortcut" *ngFor="let type of clauseTypes">
+              <kbd>{{ getShortcutKey(type) }}</kbd> {{ type.name }}
+            </div>
+          </div>
+        </div>
+
+        <div class="no-selection" *ngIf="!selectedSentence">
+          <mat-icon>touch_app</mat-icon>
+          <p>Click on any sentence to start labeling</p>
+        </div>
+      </div>
+
+      <!-- CLAUSE SUMMARY -->
+      <div class="summary-panel">
+        <h3>
+          <mat-icon>analytics</mat-icon>
+          Clause Summary
+        </h3>
+
+        <div class="summary-chart">
+          <div class="chart-placeholder">
+            <mat-icon>pie_chart</mat-icon>
+            <span>Chart Coming Soon</span>
+          </div>
+        </div>
+
+        <div class="summary-list">
+          <div class="summary-item" *ngFor="let c of clauseTypes">
+            <span class="summary-dot" [style.background]="c.color"></span>
+            <span class="summary-name">{{ c.name }}</span>
+            <span class="summary-count">{{ getCount(c.id) }}</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+<!-- CONTEXT MENU -->
+<mat-menu #menu="matMenu">
+  <button mat-menu-item *ngFor="let c of clauseTypes" (click)="applyLabelToSentence(selectedSentence!, c)">
+    <span class="menu-dot" [style.background]="c.color"></span>
+    {{ c.name }}
+  </button>
+  <mat-divider></mat-divider>
+  <button mat-menu-item *ngIf="selectedSentence?.label" (click)="removeLabelFromSentence(selectedSentence!)">
+    <mat-icon>clear</mat-icon>
+    Remove label
+  </button>
+</mat-menu>

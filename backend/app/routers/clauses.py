@@ -5,10 +5,13 @@ Endpoints for applying and removing clause type labels to sentences.
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, selectinload
+from typing import Optional
+from datetime import datetime, timezone, timedelta
 
 from ..database import get_db
 from ..models import ClauseLabel, ClauseType, Sentence
 from ..schemas import LabelCreate, LabelOut
+# from ..services.analysis_service import analysis_service
 
 router = APIRouter(tags=["Labels"])
 
@@ -97,6 +100,58 @@ def apply_label(
             detail=f"Error applying label: {str(e)}"
         )
 
+@router.get("/sentences/label", status_code=status.HTTP_200_OK)
+def labelled_count(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """Return labeled sentences, optionally filtered by date range (YYYY-MM-DD).
+
+    Query params:
+    - start_date: inclusive (YYYY-MM-DD)
+    - end_date: inclusive (YYYY-MM-DD)
+    """
+    query = db.query(ClauseLabel).options(
+        selectinload(ClauseLabel.sentence),
+        selectinload(ClauseLabel.clause_type),
+    )
+
+    # parse dates if provided — default to current UTC date when none provided
+    try:
+        if not start_date and not end_date:
+            today = datetime.now(timezone.utc).date()
+            sd = datetime(today.year, today.month, today.day, tzinfo=timezone.utc)
+            ed = sd + timedelta(days=1)
+            query = query.filter(ClauseLabel.labeled_at >= sd, ClauseLabel.labeled_at < ed)
+        else:
+            if start_date:
+                sd = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+                query = query.filter(ClauseLabel.labeled_at >= sd)
+            if end_date:
+                # make end_date inclusive by adding one day and using <
+                ed = datetime.strptime(end_date, "%Y-%m-%d").replace(tzinfo=timezone.utc) + timedelta(days=1)
+                query = query.filter(ClauseLabel.labeled_at < ed)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Dates must be in YYYY-MM-DD format")
+
+    results = query.order_by(ClauseLabel.labeled_at.desc()).all()
+
+    # Build serializable response
+    items = []
+    for lbl in results:
+        items.append({
+            "id": lbl.id,
+            "sentence_id": lbl.sentence_id,
+            "sentence_text": getattr(lbl.sentence, 'text', None),
+            "clause_type": getattr(lbl.clause_type, 'name', None),
+            "source": lbl.source,
+            "labeled_at": lbl.labeled_at.isoformat() if lbl.labeled_at else None,
+        })
+
+    return {"count": len(items), "labels": items}
+
+
 
 @router.delete("/sentences/{sentence_id}/label", status_code=status.HTTP_204_NO_CONTENT)
 def remove_label(sentence_id: int, db: Session = Depends(get_db)):
@@ -147,3 +202,9 @@ def remove_label(sentence_id: int, db: Session = Depends(get_db)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error removing label: {str(e)}"
         )
+
+
+# @router.post('/contracts/{contract_id}/auto-label')
+# def auto_label_contract(contract_id: int, only_unlabeled: bool = True, db: Session = Depends(get_db)):
+#     """Trigger AI auto-labeling for a contract's sentences."""
+#     return analysis_service.auto_label_contract(db=db, contract_id=contract_id, only_unlabeled=only_unlabeled)

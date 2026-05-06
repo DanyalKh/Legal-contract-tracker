@@ -51,7 +51,7 @@
       </div>
       <div class="kpi-trend" *ngIf="labelingTrend !== 0">
         <mat-icon [class.positive]="labelingTrend > 0">{{ getTrendIcon(labelingTrend) }}</mat-icon>
-        {{ labelingTrend | number }} today
+        {{ labelingTrend }} today
       </div>
     </mat-card>
 

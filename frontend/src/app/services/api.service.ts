@@ -46,6 +46,13 @@ export class ApiService {
     );
   }
 
+  labelled_count(startDate?: string, endDate?: string): Observable<any> {
+    let params: any = {};
+    if (startDate) params.start_date = startDate;
+    if (endDate) params.end_date = endDate;
+    return this.http.get(`${this.baseUrl}/sentences/label`, { params });
+  }
+
   removeLabel(sentenceId: number): Observable<any> {
     return this.http.delete(
       `${this.baseUrl}/sentences/${sentenceId}/label`

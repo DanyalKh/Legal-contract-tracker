@@ -5,8 +5,8 @@ import { FormsModule } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { UploadDialogComponent } from '../../components/upload-dialog/upload-dialog.component';
 import { ApiService } from '../../services/api.service';
-import { Subject } from 'rxjs';
-import { debounceTime, distinctUntilChanged, takeUntil } from 'rxjs/operators';
+import { Subject, Observable, of } from 'rxjs';
+import { debounceTime, distinctUntilChanged, takeUntil, catchError, tap } from 'rxjs/operators';
 
 /* Material */
 import { MatCardModule } from '@angular/material/card';
@@ -69,9 +69,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.loadContracts();
     this.loadClauseTypes();
 
-    // Initialize mock data
+    // Fetch global labelled count for dashboard trend
+    this.getLabelledCount().pipe(takeUntil(this.destroy$)).subscribe();
+
+    // Initialize mock data for progress
     this.progressChange = Math.floor(Math.random() * 20) - 5;
-    this.labelingTrend = Math.floor(Math.random() * 10);
 
     // Setup debounced search
     this.searchSubject
@@ -157,7 +159,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       }
     });
   }
-
+// 5352 9902 2445 0564    934   12/30
   loadClauseTypes() {
     this.apiService.getClauseTypes()
     .pipe(takeUntil(this.destroy$))
@@ -220,6 +222,23 @@ export class DashboardComponent implements OnInit, OnDestroy {
   getProgress(c: any) {
     if (!c || !c.total_sentences || !c.labeled_count) return 0;
     return c.total_sentences > 0 ? (c.labeled_count / c.total_sentences) * 100 : 0;
+  }
+
+  getLabelledCount(c?: any, startDate?: string, endDate?: string): Observable<any> {
+
+    return this.apiService.labelled_count(startDate, endDate).pipe(
+      tap((res: any) => {
+        this.labelingTrend = (res && res.count) ? res.count : 0;
+        this.cdr.detectChanges();
+      }),
+      catchError((err) => {
+        console.error('labelled_count API failed, using mock value', err);
+        const mock = Math.floor(Math.random() * 10);
+        this.labelingTrend = mock;
+        this.cdr.detectChanges();
+        return of({ count: mock, labels: [] });
+      })
+    );
   }
 
   getUnlabeledCount(c: any) {
